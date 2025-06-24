@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Note Editor - CollabNotes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<script>
+  const existingNote = <%- JSON.stringify(typeof note !== 'undefined' ? note : null) %>;
+  const noteId = "<%= (typeof note !== 'undefined' && note) ? note._id : '' %>";
+</script>
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+  <!-- Header -->
+  <header class="flex justify-between items-center p-4 bg-white shadow-md">
+    <!-- Editable Title -->
+    <input id="note-title" value="Untitled Note" class="text-xl font-bold border-none focus:outline-none bg-transparent w-2/3" />
+
+    <div class="flex items-center gap-4">
+      <button onclick="openModal()" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Share</button>
+      <span id="save-status" class="text-sm text-gray-500">Last saved just now</span>
+    </div>
+  </header>
+
+  <!-- Editor Section -->
+  <main class="p-6">
+    <div id="editor" contenteditable="true" class="bg-white shadow p-6 rounded-lg min-h-[400px] focus:outline-none">
+      Start writing your note here...
+    </div>
+    
+  </main>
+
+  <!-- Sidebar/Modal -->
+  <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center">
+    <div class="bg-white rounded-lg w-full max-w-md p-6 relative">
+      <button onclick="closeModal()" class="absolute top-2 right-2 text-gray-500 hover:text-red-500 text-xl">&times;</button>
+      <h2 class="text-lg font-bold mb-4">Collaborators & Permissions</h2>
+
+      <!-- Collaborators -->
+      <div class="mb-4">
+        <label class="block font-medium mb-1">Collaborators (Email IDs separated by comma)</label>
+        <input id="collaborators" type="text" placeholder="user1@example.com, user2@example.com" class="w-full px-3 py-2 border rounded-md mb-2"/>
+        <label class="inline-flex items-center">
+          <input id="canEdit" type="checkbox" class="h-4 w-4 mr-2"> Can Edit
+        </label>
+      </div>
+
+      <!-- Tags -->
+      <div class="mb-4">
+        <label class="block font-medium mb-1">Tags (separated by comma)</label>
+        <input id="tags" type="text" placeholder="project,important,meeting" class="w-full px-3 py-2 border rounded-md" />
+      </div>
+
+
+      <!-- Save Button -->
+        <button onclick="submitNote()" class="mt-4 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          Save & Go to Dashboard
+        </button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    window.onload = () => {
+    if (existingNote) {
+      document.getElementById('note-title').value = existingNote.title;
+      document.getElementById('editor').innerHTML = existingNote.content;
+      document.getElementById('tags').value = existingNote.tags.join(', ');
+      // Optional: set collaborators and canEdit if needed
+    }
+    };
+    const saveStatus = document.getElementById('save-status');
+    const editor = document.getElementById('editor');
+    const modal = document.getElementById('modal');
+
+    function openModal() {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+    }
+
+    let typingTimer;
+    editor.addEventListener('input', () => {
+      clearTimeout(typingTimer);
+      saveStatus.textContent = "Saving...";
+      typingTimer = setTimeout(() => {
+        // Simulate saving process
+        saveStatus.textContent = "Last saved a few seconds ago";
+      }, 1000);
+    });
+
+  async function submitNote() {
+    const title = document.getElementById('note-title').value;
+    const content = document.getElementById('editor').innerHTML;
+    const collaboratorsInput = document.getElementById('collaborators').value;
+    const tagsInput = document.getElementById('tags').value;
+    const canEdit = document.getElementById('canEdit').checked;
+
+    const collaboratorEmails = collaboratorsInput.split(',').map(e => e.trim()).filter(Boolean);
+    const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+    
+      let url = '/api/notes';
+      let method = 'POST';
+      if (existingNote) {
+        url = `/api/notes/${existingNote._id}`;
+        method = 'PUT';
+      }
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title,
+        content,
+        collaboratorEmails,
+        tags,
+        canEdit
+      })
+    });
+
+    if (response.ok) {
+      window.location.href = '/dashboard';
+    } else {
+      const errData = await response.json();
+      alert('Error saving note: ' + (errData.error || 'Unknown error'));
+    }
+  }
+
+    // Close modal on outside click
+    window.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>
